@@ -29,10 +29,10 @@ def display_count(contours, name):
     count = len(contours)
     print(f'[{name}] Object count: {count}') # display approximated counts for countours 
     
-def display_count_watershed(markers):
+def display_count_watershed(markers, description):
     unique_markers= np.unique(markers)
     count = len(unique_markers) - 2
-    print(f'[Watershed] Object count: {count}')
+    print(f'[Watershed{description}] Object count: {count}')
 
 def pre_process(img):
     ## SMOOTH IMAGE ##
@@ -76,8 +76,20 @@ def pre_process(img):
     
     return markers # return markers to be used in watershed
 
+def remove_small_segments(markers, filter_segment_size):
+    filtered_markers = np.zeros_like(markers)
+    
+    for marker in range(1, markers.max() + 1):  # excluding background
+        segment_mask = np.uint8(markers == marker)
+        segment_size = cv.countNonZero(segment_mask)
+        
+        if segment_size >= filter_segment_size:
+            filtered_markers[markers == marker] = marker
+            
+    return filtered_markers
+
 def watershed(): 
-    img, imgRGB = read_image("traffic.png")
+    img, imgRGB = read_image("cars.jpg")
 
     ## DISPLAY ORIGINAL IMAGE ##
     plt.figure('Pre-Processing')
@@ -86,18 +98,27 @@ def watershed():
     ## PRE-PROCESS & OBTAIN MARKERS ##
     markers = pre_process(img)
     
+    ## REMOVE SMALL SEGMENTS ##
+    filtered_markers = remove_small_segments(markers, 100)
+    
     ## IMPLEMENT WATERSHED ##
     plt.figure('Watershed Technique') 
     markers = np.int32(markers)
     markers = cv.watershed(imgRGB,markers) # apply watershed
-    plot(121, markers, 'Watershed')
+    plot(131, markers, 'Watershed Before Removing Small Segments')
+    
+    ## IMPLEMENT WATERSHED WITH FILTERED MARKERS ##
+    filtered_markers = np.int32(filtered_markers)
+    filtered_markers = cv.watershed(imgRGB,filtered_markers) # apply watershed
+    plot(132, filtered_markers, 'Watershed After Removing Small Segments')
 
     ## VISUALIZE BOUNDARIES ##
-    imgRGB[markers == -1] = [255,0,0]
-    plot(122, imgRGB, 'Segmented Image')
+    imgRGB[filtered_markers == -1] = [255,0,0]
+    plot(133, imgRGB, 'Segmented Image')
 
     ## DISPLAY COUNTS FROM WATERSHED ##
-    display_count_watershed(markers)
+    display_count_watershed(markers, '')
+    display_count_watershed(filtered_markers, ' Filtered')
     
     plt.show()
     
